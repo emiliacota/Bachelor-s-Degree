@@ -1,0 +1,108 @@
+#include "DHT.h"
+#include <Wire.h>
+#include <BH1750.h>
+#include <WiFi.h>
+#include <PubSubClient.h>
+
+const char* ssid = "ESP32Test";
+const char* password = "12345678";
+const char* mqtt_server = "172.20.10.2";
+const int mqtt_port = 1883;
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+#define DHTPIN 23
+#define DHTTYPE DHT22
+DHT dht(DHTPIN, DHTTYPE);
+#define SOIL_PIN 34
+BH1750 lightMeter;
+
+void setup_wifi() {
+  Serial.println();
+  Serial.print("Conectare la WiFi: ");
+  Serial.println(ssid);
+
+  WiFi.begin(ssid, password);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println("");
+  Serial.println("WiFi conectat!");
+  Serial.print("Adresa IP ESP32: ");
+  Serial.println(WiFi.localIP());
+}
+
+void reconnect_mqtt() {
+  while (!client.connected()) {
+    Serial.print("Conectare la broker MQTT...");
+    if (client.connect("ESP32SmartGarden")) {
+      Serial.println("conectat!");
+    } else {
+      Serial.print("eroare, rc=");
+      Serial.print(client.state());
+      Serial.println(" reincerc in 5 secunde");
+      delay(5000);
+    }
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  Serial.println("=====================================================");
+  Serial.println("   SISTEM IOT REAL: AER + SOL CAPACITIV + LUMINĂ + MQTT");
+  Serial.println("=====================================================");
+
+  dht.begin();
+  Wire.begin(21, 22);
+
+  if (lightMeter.begin(BH1750::CONTINUOUS_HIGH_RES_MODE)) {
+    Serial.println("[OK] Senzorul de lumină BH1750 a pornit cu succes!");
+  } else {
+    Serial.println("[EROARE] Nu am găsit senzorul BH1750! Verifică firele P21/P22.");
+  }
+
+  setup_wifi();
+  client.setServer(mqtt_server, mqtt_port);
+}
+
+void loop() {
+  if (!client.connected()) {
+    reconnect_mqtt();
+  }
+  client.loop();
+  delay(2000);
+
+  float umiditateAer = dht.readHumidity();
+  float temperaturaAer = dht.readTemperature();
+  int valoareSolBruta = analogRead(SOIL_PIN);
+  float luminaLux = lightMeter.readLightLevel();
+
+  if (isnan(umiditateAer) || isnan(temperaturaAer)) {
+    Serial.println("[EROARE] Senzorul DHT22 nu trimite date! Verifică firele.");
+    return;
+  }
+  
+  Serial.print("AER -> Temp: ");
+  Serial.print(temperaturaAer, 1);
+  Serial.print("°C | Umiditate: ");
+  Serial.print(umiditateAer, 1);
+  Serial.print("% || SOL -> Brut: ");
+  Serial.print(valoareSolBruta);
+  Serial.print(" || LUMINĂ -> ");
+  Serial.print(luminaLux, 1);
+  Serial.println(" lux");
+
+  char buffer[10];
+  dtostrf(temperaturaAer, 4, 1, buffer);
+  client.publish("smartgarden/temperatura", buffer);
+  dtostrf(umiditateAer, 4, 1, buffer);
+  client.publish("smartgarden/umiditate_aer", buffer);
+  dtostrf(luminaLux, 6, 1, buffer);
+  client.publish("smartgarden/lumina", buffer);
+  itoa(valoareSolBruta, buffer, 10);
+  client.publish("smartgarden/sol", buffer);
+}
