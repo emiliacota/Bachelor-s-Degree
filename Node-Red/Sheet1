@@ -1,0 +1,565 @@
+[
+    {
+        "id": "e55e3c61c85589a0",
+        "type": "tab",
+        "label": "Flow 3",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "7413ad9bc9e89d37",
+        "type": "function",
+        "z": "e55e3c61c85589a0",
+        "name": "Decision Algorithm",
+        "func": "// 1. Verificăm de la care nod mov vine mesajul, folosind msg.topic salvat de Node-RED\nlet topic = msg.topic || \"\";\n\nif (topic.includes(\"temperatura\")) {\n    flow.set(\"real_Temperature\", parseFloat(msg.payload));\n} else if (topic.includes(\"umiditate_aer\")) {\n    flow.set(\"real_Air_humidity\", parseFloat(msg.payload));\n} else if (topic.includes(\"sol\")) {\n    // Transformăm valoarea brută (ex: 2939) în procentaj pentru interfață (0-100%)\n    // Presupunem: 4095 = aer uscat (0%), ~1500 = apă completă (100%)\n    let brut = parseFloat(msg.payload);\n    let procentSol = ((4095 - brut) / (4095 - 1500)) * 100;\n    if (procentSol < 0) procentSol = 0;\n    if (procentSol > 100) procentSol = 100;\n    \n    flow.set(\"real_Soil_moisture\", procentSol);\n} else if (topic.includes(\"lumina\")) {\n    flow.set(\"real_Brightness\", parseFloat(msg.payload));\n}\n\n// 2. Preluăm datele. Dacă un senzor nu a trimis încă nimic, luăm direct din Serial Monitor valori de pornire\nconst Temperature   = flow.get(\"real_Temperature\")   || 26.9;\nconst Air_humidity  = flow.get(\"real_Air_humidity\")  || 43.1;\nconst Soil_moisture = flow.get(\"real_Soil_moisture\") || 35.0; // Valoare gata convertită în %\nconst Brightness    = flow.get(\"real_Brightness\")    || 40.0;\nconst vizual        = flow.get(\"real_vizual\")        || { verde: 60, galben: 20, maro: 20 };\n\n// ==========================================\n// DE AICI URMEAZĂ RESTUL CODULUI TĂU ORIGINAL\n// ==========================================\nlet stare, Recommendation, culoare;\n\n// Determina starea vizuala din procentele de culoare\nlet stare_viz;\nif (vizual.verde > 55) {\n    stare_viz = \"fericita\";\n} else if (vizual.maro > 35) {\n    stare_viz = \"trista\";\n} else {\n    stare_viz = \"neutra\";\n}\n\n// Decizie finala - senzorii critici au prioritate\nif (Soil_moisture < 25) {\n    stare       = \"trista\";\n    culoare     = \"#8B6914\";\n    Recommendation = \"Uda urgent! Solul este prea uscat.\";\n\n} else if (Temperature > 33) {\n    stare       = \"trista\";\n    culoare     = \"#8B6914\";\n    Recommendation = \"Canicula! Muta planta la racoare.\";\n\n} else if (stare_viz === \"trista\" && Soil_moisture < 50) {\n    stare       = \"trista\";\n    culoare     = \"#8B6914\";\n    Recommendation = \"Planta arata rau (\" + vizual.maro + \"% maro). Verifica si uda.\";\n\n} else if (Brightness > 800) {\n    stare       = \"neutra\";\n    culoare     = \"#C8A000\";\n    Recommendation = \"Prea mult soare! Muta intr-un loc umbros.\";\n\n} else if (Soil_moisture < 45) {\n    stare       = \"neutra\";\n    culoare     = \"#C8A000\";\n    Recommendation = \"Solul incepe sa se usuce. Uda in curand.\";\n\n} else if (stare_viz === \"fericita\" && Soil_moisture > 45 && Temperature < 30) {\n    stare       = \"fericita\";\n    culoare     = \"#2D7A2D\";\n    Recommendation = \"Planta arata sanatoasa! Senzori si camera confirma.\";\n\n} else if (Temperature < 12) {\n    stare       = \"neutra\";\n    culoare     = \"#C8A000\";\n    Recommendation = \"Temperatura prea scazuta. Muta planta la caldura.\";\n\n} else {\n    stare       = \"fericita\";\n    culoare     = \"#2D7A2D\";\n    Recommendation = \"Planta este sanatoasa! Continua ingrijirea normala.\";\n}\n\n// Trimite totul mai departe\nmsg.payload = {\n    stare: stare,\n    culoare: culoare,\n    Recommendation: Recommendation,\n    stare_viz: stare_viz,\n    Temperature: Temperature,\n    Air_humidity: Air_humidity,\n    Soil_moisture: Soil_moisture,\n    Brightness: Brightness,\n    vizual: vizual\n};\n\nmsg.stare = stare;\nmsg.culoare = culoare;\nmsg.Recommendation = Recommendation;\nmsg.stare_viz = stare_viz;\nmsg.Temperature = Temperature;\nmsg.Air_humidity = Air_humidity;\nmsg.Soil_moisture = Soil_moisture;\nmsg.Brightness = Brightness;\nmsg.vizual = vizual;\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 730,
+        "y": 380,
+        "wires": [
+            [
+                "1b344cdb4c0acba5",
+                "29758f58e900b224",
+                "7bb4c70b92a0b9b3",
+                "36b3c7c5ba003dab",
+                "cf8aac01359fb80d",
+                "8fd70af3715af1d8",
+                "359425b0ba6e2241"
+            ]
+        ]
+    },
+    {
+        "id": "1b344cdb4c0acba5",
+        "type": "change",
+        "z": "e55e3c61c85589a0",
+        "name": "Temperature",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "Temperature",
+                "tot": "msg"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 1050,
+        "y": 240,
+        "wires": [
+            [
+                "300bdabca551f5e3"
+            ]
+        ]
+    },
+    {
+        "id": "29758f58e900b224",
+        "type": "change",
+        "z": "e55e3c61c85589a0",
+        "name": "Soil_moisture",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "Soil_moisture",
+                "tot": "msg"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 1060,
+        "y": 320,
+        "wires": [
+            [
+                "7bb506fa2f31266a"
+            ]
+        ]
+    },
+    {
+        "id": "7bb4c70b92a0b9b3",
+        "type": "change",
+        "z": "e55e3c61c85589a0",
+        "name": "Air_humidity",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "Air_humidity",
+                "tot": "msg"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 1050,
+        "y": 400,
+        "wires": [
+            [
+                "8f5e97ad0842b904"
+            ]
+        ]
+    },
+    {
+        "id": "36b3c7c5ba003dab",
+        "type": "change",
+        "z": "e55e3c61c85589a0",
+        "name": "Brightness",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "Brightness",
+                "tot": "msg"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 1050,
+        "y": 480,
+        "wires": [
+            [
+                "0c312fdd435daca1"
+            ]
+        ]
+    },
+    {
+        "id": "cf8aac01359fb80d",
+        "type": "change",
+        "z": "e55e3c61c85589a0",
+        "name": "Recommendation",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "Recommendation",
+                "tot": "msg"
+            },
+            {
+                "t": "set",
+                "p": "stare",
+                "pt": "msg",
+                "to": "stare",
+                "tot": "msg"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 1070,
+        "y": 560,
+        "wires": [
+            [
+                "110af6a330a3c33d"
+            ]
+        ]
+    },
+    {
+        "id": "0c312fdd435daca1",
+        "type": "change",
+        "z": "e55e3c61c85589a0",
+        "name": "",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "Brightness",
+                "tot": "msg"
+            },
+            {
+                "t": "set",
+                "p": "topic",
+                "pt": "msg",
+                "to": "Brightness",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 1260,
+        "y": 480,
+        "wires": [
+            [
+                "7de468c2211b948d"
+            ]
+        ]
+    },
+    {
+        "id": "8fd70af3715af1d8",
+        "type": "ui_template",
+        "z": "e55e3c61c85589a0",
+        "group": "146d0975fce9b5b8",
+        "name": "Animated Plant",
+        "order": 3,
+        "width": 7,
+        "height": 11,
+        "format": "<div style=\"display:flex; flex-direction:column; align-items:center; padding:10px;\">\n\n  <!-- SVG animat - doar planta si ghiveci, FARA masa -->\n  <svg viewBox=\"0 0 120 180\" width=\"300\" height=\"400\"\n    style=\"transform-origin:50% 100%; animation:sway 3s ease-in-out infinite;\">\n\n    <!-- Ghiveci mai mare -->\n    <path d=\"M30,145 L90,145 L83,172 L37,172 Z\" fill=\"#C17F3A\" />\n    <rect x=\"25\" y=\"136\" width=\"70\" height=\"15\" rx=\"5\" fill=\"#A0652A\" />\n    <ellipse cx=\"60\" cy=\"140\" rx=\"28\" ry=\"7\" fill=\"#7A4E20\" />\n\n    <!-- Tulpina -->\n    <line x1=\"60\" y1=\"136\" x2=\"60\" y2=\"55\" stroke=\"#4A7C3F\" stroke-width=\"4\" stroke-linecap=\"round\" />\n\n    <!-- Frunze -->\n    <path class=\"lf\" d=\"M60,120 Q32,105 28,80 Q48,85 60,120\" fill=\"#5A9E4A\" />\n    <path class=\"lf\" d=\"M60,108 Q88,93 92,68 Q72,73 60,108\" fill=\"#4A8E3A\" />\n    <path class=\"lf\" d=\"M60,95 Q34,80 31,55 Q51,60 60,95\" fill=\"#5A9E4A\" />\n    <path class=\"lf\" d=\"M60,82 Q86,67 89,42 Q69,47 60,82\" fill=\"#4A8E3A\" />\n    <path class=\"lf\" d=\"M60,68 Q36,54 34,30 Q54,35 60,68\" fill=\"#5A9E4A\" />\n\n    <!-- Mugure top -->\n    <circle id=\"bd\" cx=\"60\" cy=\"52\" r=\"7\" fill=\"#3A7A2E\" />\n\n    <!-- Fata ghiveci - mai spatioasa -->\n    <circle cx=\"50\" cy=\"155\" r=\"2.5\" fill=\"white\" opacity=\"0.85\" />\n    <circle cx=\"70\" cy=\"155\" r=\"2.5\" fill=\"white\" opacity=\"0.85\" />\n    <path id=\"mo\" d=\"M52,165 Q60,170 68,165\" stroke=\"white\" stroke-width=\"1.8\" fill=\"none\" stroke-linecap=\"round\"\n      opacity=\"0.85\" />\n  </svg>\n\n  <!-- Masa SEPARATA - nu se misca -->\n  <div style=\"width:220px; height:10px; background:#8B6347; border-radius:4px; margin-top:-15px;\"></div>\n  <div style=\"display:flex; justify-content:space-between; width:180px;\">\n    <div style=\"width:10px; height:20px; background:#6B4423; border-radius:2px;\"></div>\n    <div style=\"width:10px; height:20px; background:#6B4423; border-radius:2px;\"></div>\n  </div>\n\n  <!-- Status label - mai jos -->\n  <div id=\"sl\" style=\"margin-top:16px; padding:5px 18px; border-radius:20px;\n                      font-size:13px; font-weight:500; background:#2D7A2D; color:white;\">\n    Loading...\n  </div>\n\n  <!-- Procentele vizuale -->\n  <div style=\"display:flex; gap:12px; margin-top:10px; font-size:11px;\">\n    <span id=\"pg\" style=\"color:#4CAF50;\">🟢 -</span>\n    <span id=\"py\" style=\"color:#FFC107;\">🟡 -</span>\n    <span id=\"pb\" style=\"color:#795548;\">🟤 -</span>\n  </div>\n\n</div>\n\n<style>\n  @keyframes sway {\n    0% {\n      transform: rotate(-1.5deg);\n    }\n\n    50% {\n      transform: rotate(1.5deg);\n    }\n\n    100% {\n      transform: rotate(-1.5deg);\n    }\n  }\n</style>\n\n<script>\n  (function($scope) {\n    $scope.$watch('msg', function(msg) {\n        if (!msg) return;\n\n        var stare   = msg.stare   || 'fericita';\n        var culoare = msg.culoare || '#2D7A2D';\n        var vizual  = msg.vizual  || { verde:0, galben:0, maro:0 };\n\n        document.querySelectorAll('.lf').forEach(function(l) {\n            l.style.fill = stare === 'fericita' ? l.getAttribute('fill') : culoare;\n        });\n\n        document.getElementById('bd').style.fill = culoare;\n\n        var mo = document.getElementById('mo');\n        if (stare === 'fericita')    mo.setAttribute('d','M52,165 Q60,171 68,165');\n        else if (stare === 'neutra') mo.setAttribute('d','M52,166 Q60,166 68,166');\n        else                         mo.setAttribute('d','M52,168 Q60,163 68,168');\n\n        var labels = {\n            'fericita': 'Plant is healthy!',\n            'neutra':   'Acceptable conditions',\n            'trista':   'Plant needs help!'\n        };\n        var sl = document.getElementById('sl');\n        sl.textContent = labels[stare] || stare;\n        sl.style.background = culoare;\n\n        document.getElementById('pg').textContent = '🟢 ' + (vizual.verde  || 0).toFixed(1) + '%';\n        document.getElementById('py').textContent = '🟡 ' + (vizual.galben || 0).toFixed(1) + '%';\n        document.getElementById('pb').textContent = '🟤 ' + (vizual.maro   || 0).toFixed(1) + '%';\n    });\n})(scope);\n</script>",
+        "storeOutMessages": true,
+        "fwdInMessages": true,
+        "resendOnRefresh": true,
+        "templateScope": "local",
+        "className": "",
+        "x": 900,
+        "y": 140,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "7bb506fa2f31266a",
+        "type": "ui_template",
+        "z": "e55e3c61c85589a0",
+        "group": "146d0975fce9b5b8",
+        "name": "Water Circle",
+        "order": 1,
+        "width": 4,
+        "height": 6,
+        "format": "<div style=\"\n  width: 100%; \n  height: 100%; \n  padding: 12px; \n  box-sizing: border-box; \n  background: #222222; \n  border: 1px solid #2D4A2D; \n  border-radius: 12px; \n  box-shadow: 0 4px 6px rgba(0,0,0,0.3);\n  display: flex; \n  flex-direction: column;\n  justify-content: center;\n  align-items: center;\">\n\n  <div style=\"font-size:18px; color:white; font-weight:500; margin-bottom:8px; text-align:center;\">Soil Moisture</div>\n\n  <svg viewBox=\"0 0 120 120\" width=\"160\" height=\"160\">\n    <defs>\n      <clipPath id=\"circle-clip\">\n        <circle cx=\"60\" cy=\"60\" r=\"50\" />\n      </clipPath>\n    </defs>\n\n    <circle cx=\"60\" cy=\"60\" r=\"50\" fill=\"#1a1a2e\" stroke=\"#444\" stroke-width=\"2\" />\n\n    <g clip-path=\"url(#circle-clip)\">\n      <rect id=\"water-bg\" x=\"10\" y=\"115\" width=\"100\" height=\"5\" fill=\"#1a9fd4\" opacity=\"0.4\" />\n      <path id=\"water-wave\" d=\"M10,115 L120,115 L120,115 L10,115 Z\" fill=\"#1a9fd4\" opacity=\"0.8\">\n        <animateTransform attributeName=\"transform\" type=\"translate\" from=\"-50,0\" to=\"0,0\" dur=\"2s\"\n          repeatCount=\"indefinite\" />\n      </path>\n    </g>\n\n    <text id=\"moisture-val\" x=\"60\" y=\"65\" text-anchor=\"middle\" font-size=\"22\" font-weight=\"bold\" fill=\"white\">\n      --%\n    </text>\n    <text x=\"60\" y=\"75\" text-anchor=\"middle\" font-size=\"10\" fill=\"#aaa\">moisture</text>\n\n    <circle cx=\"60\" cy=\"60\" r=\"50\" fill=\"none\" stroke=\"#1a9fd4\" stroke-width=\"2.5\" />\n  </svg>\n\n</div>\n\n<script>\n  (function($scope) {\n    $scope.$watch('msg', function(msg) {\n        if (!msg || msg.payload === undefined) return;\n        \n        var val = parseFloat(msg.payload);\n        if (isNaN(val)) return;\n        \n        document.getElementById('moisture-val').textContent = val.toFixed(1) + '%';\n        \n        // 0% = y:110 (aproape gol), 100% = y:10 (plin)\n        // Cercul merge de la y=10 la y=110, deci 100px pentru 100%\n        var waterY = 110 - (val);  // 1% = 1px\n        \n        document.getElementById('water-bg').setAttribute('y', waterY);\n        document.getElementById('water-bg').setAttribute('height', 110 - waterY + 10);\n        \n        document.getElementById('water-wave').setAttribute('d',\n            'M10,' + waterY +\n            ' Q30,' + (waterY - 6) + ' 50,' + waterY +\n            ' Q70,' + (waterY + 6) + ' 90,' + waterY +\n            ' Q110,' + (waterY - 6) + ' 120,' + waterY +\n            ' L120,115 L10,115 Z'\n        );\n        \n        // Culoare in functie de nivel\n        var color;\n        if (val < 25) {\n            color = '#e74c3c';      // rosu - uscat\n        } else if (val < 45) {\n            color = '#e8a020';      // portocaliu - scazut\n        } else {\n            color = '#1a9fd4';      // albastru - ok\n        }\n        document.getElementById('water-wave').style.fill = color;\n        document.getElementById('water-bg').style.fill = color;\n        \n        // Culoarea borderului\n        document.querySelector('circle:last-of-type').style.stroke = color;\n    });\n})(scope);\n</script>",
+        "storeOutMessages": true,
+        "fwdInMessages": true,
+        "resendOnRefresh": true,
+        "templateScope": "local",
+        "className": "",
+        "x": 1310,
+        "y": 320,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "300bdabca551f5e3",
+        "type": "ui_template",
+        "z": "e55e3c61c85589a0",
+        "group": "146d0975fce9b5b8",
+        "name": "Thermometer",
+        "order": 2,
+        "width": 3,
+        "height": 6,
+        "format": "<div style=\"\n  width: 100%; \n  height: 100%; \n  padding: 12px; \n  box-sizing: border-box; \n  background: #222222; \n  border: 1px solid #2D4A2D; \n  border-radius: 12px; \n  box-shadow: 0 4px 6px rgba(0,0,0,0.3);\n  display: flex; \n  flex-direction: column;\n  justify-content: center;\n  align-items: center;\">\n\n  <div style=\"font-size:18px; color:white; font-weight:500; margin-bottom:12px; text-align:center;\">Temperature</div>\n\n  <svg viewBox=\"0 0 60 160\" width=\"70\" height=\"160\">\n\n    <rect x=\"22\" y=\"10\" width=\"16\" height=\"105\" rx=\"8\" fill=\"#2a2a3e\" stroke=\"#555\" stroke-width=\"1.5\" />\n\n    <rect id=\"tf\" x=\"24\" y=\"80\" width=\"12\" height=\"35\" rx=\"4\" fill=\"#2ecc71\" />\n\n    <circle id=\"tb\" cx=\"30\" cy=\"118\" r=\"14\" fill=\"#2ecc71\" stroke=\"#555\" stroke-width=\"1.5\" />\n\n    <line x1=\"38\" y1=\"20\" x2=\"44\" y2=\"20\" stroke=\"#888\" stroke-width=\"1\" />\n    <line x1=\"38\" y1=\"35\" x2=\"44\" y2=\"35\" stroke=\"#888\" stroke-width=\"1\" />\n    <line x1=\"38\" y1=\"50\" x2=\"44\" y2=\"50\" stroke=\"#888\" stroke-width=\"1\" />\n    <line x1=\"38\" y1=\"65\" x2=\"44\" y2=\"65\" stroke=\"#888\" stroke-width=\"1\" />\n    <line x1=\"38\" y1=\"80\" x2=\"44\" y2=\"80\" stroke=\"#888\" stroke-width=\"1\" />\n    <line x1=\"38\" y1=\"95\" x2=\"44\" y2=\"95\" stroke=\"#888\" stroke-width=\"1\" />\n    <line x1=\"38\" y1=\"110\" x2=\"44\" y2=\"110\" stroke=\"#888\" stroke-width=\"1\" />\n\n    <text x=\"46\" y=\"23\" font-size=\"8\" fill=\"#aaa\">50°</text>\n    <text x=\"46\" y=\"53\" font-size=\"8\" fill=\"#aaa\">30°</text>\n    <text x=\"46\" y=\"83\" font-size=\"8\" fill=\"#aaa\">15°</text>\n    <text x=\"46\" y=\"113\" font-size=\"8\" fill=\"#aaa\">0°</text>\n\n    <text id=\"tv\" x=\"30\" y=\"122\" text-anchor=\"middle\" font-size=\"7\" font-weight=\"bold\" fill=\"white\">\n      --°\n    </text>\n\n  </svg>\n\n</div>\n\n<script>\n  (function($scope) {\n    $scope.$watch('msg', function(msg) {\n        if (!msg || msg.payload === undefined) return;\n        \n        var val = parseFloat(msg.payload);\n        if (isNaN(val)) return;\n        \n        document.getElementById('tv').textContent = val.toFixed(1) + '°';\n        \n        var fillH = Math.min(Math.max((val / 50) * 105, 4), 105);\n        var fillY = 115 - fillH;\n        document.getElementById('tf').setAttribute('y', fillY);\n        document.getElementById('tf').setAttribute('height', fillH);\n        \n        var color;\n        if (val < 15)       color = '#3498db';\n        else if (val < 28)  color = '#2ecc71';\n        else if (val < 35)  color = '#f39c12';\n        else                color = '#e74c3c';\n        \n        document.getElementById('tf').style.fill = color;\n        document.getElementById('tb').style.fill = color;\n    });\n})(scope);\n</script>",
+        "storeOutMessages": true,
+        "fwdInMessages": true,
+        "resendOnRefresh": true,
+        "templateScope": "local",
+        "className": "",
+        "x": 1320,
+        "y": 240,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "7de468c2211b948d",
+        "type": "ui_template",
+        "z": "e55e3c61c85589a0",
+        "group": "146d0975fce9b5b8",
+        "name": "Brightness",
+        "order": 4,
+        "width": 9,
+        "height": 6,
+        "format": "<div style=\"\n  width: 100%; \n  height: 100%; \n  padding: 12px; \n  box-sizing: border-box; \n  background: #222222; \n  border: 1px solid #2D4A2D; \n  border-radius: 12px; \n  box-shadow: 0 4px 6px rgba(0,0,0,0.3);\n  display: flex; \n  flex-direction: column;\">\n\n  <div style=\"font-size:18px; color:white; font-weight:500; margin-bottom:8px; text-align:center; width:100%;\">\n    Brightness (24h - Logarithmic)</div>\n  <div style=\"display:flex; flex:1; min-height:0;\">\n\n    <div\n      style=\"display:flex; flex-direction:column; justify-content:space-between; padding:4px 6px 4px 0; font-size:16px;\">\n      <span title=\"Direct Sunlight (50000 lx)\">🌞</span>\n      <span title=\"Bright Daylight (10000 lx)\">☀️</span>\n      <span title=\"Overcast / Room (1000 lx)\">🌤️</span>\n      <span title=\"Dim Light (100 lx)\">☁️</span>\n      <span title=\"Night / Darkness (0-10 lx)\">🌙</span>\n    </div>\n\n    <canvas id=\"lux-canvas\" style=\"flex:1; min-width:0;\"></canvas>\n  </div>\n  <div id=\"x-axis\"\n    style=\"display:flex; justify-content:space-between; font-size:9px; color:#666; padding-left:30px; margin-top:2px;\">\n  </div>\n</div>\n\n<script>\n  (function($scope) {\n  var history = [];\n  var MAX = 288;\n  var MAX_LUX = 50000; // Domeniu extins, compatibil cu BH1750\n  var canvas, ctx;\n\n  function init() {\n    canvas = document.getElementById('lux-canvas');\n    if (!canvas) return false;\n    ctx = canvas.getContext('2d');\n    return true;\n  }\n\n  // Functie pentru calcularea inaltimii pe axa Y folosind scara logaritmica\n  function getLogY(val, H) {\n    var safeVal = Math.max(0, Math.min(val, MAX_LUX));\n    // ln(val + 1) previne eroarea logaritmului din 0\n    var logNorm = Math.log(safeVal + 1) / Math.log(MAX_LUX + 1);\n    return H - (logNorm * H);\n  }\n\n  function draw() {\n    if (!ctx) return;\n    var W = canvas.offsetWidth;\n    var H = canvas.offsetHeight;\n    canvas.width  = W;\n    canvas.height = H;\n\n    ctx.clearRect(0, 0, W, H);\n\n    // Grid lines logaritmice (reprezinta reperele 10, 100, 1000, 10000 lux)\n    ctx.strokeStyle = '#333';\n    ctx.lineWidth = 0.5;\n    var gridLevels = [10, 100, 1000, 10000];\n    gridLevels.forEach(function(lvl) {\n      var gy = getLogY(lvl, H);\n      ctx.beginPath();\n      ctx.moveTo(0, gy);\n      ctx.lineTo(W, gy);\n      ctx.stroke();\n    });\n\n    if (history.length < 2) return;\n\n    var step = W / (MAX - 1);\n\n    // Gradient fill\n    var grad = ctx.createLinearGradient(0, 0, 0, H);\n    grad.addColorStop(0,   'rgba(239,159,39,0.6)');\n    grad.addColorStop(1,   'rgba(239,159,39,0)');\n\n    ctx.beginPath();\n    history.forEach(function(pt, i) {\n      var x = i * step;\n      var y = getLogY(pt.v, H);\n      if (i === 0) ctx.moveTo(x, H);\n      ctx.lineTo(x, y);\n    });\n    ctx.lineTo((history.length - 1) * step, H);\n    ctx.closePath();\n    ctx.fillStyle = grad;\n    ctx.fill();\n\n    // Linie Grafic\n    ctx.beginPath();\n    ctx.strokeStyle = '#EF9F27';\n    ctx.lineWidth = 2;\n    history.forEach(function(pt, i) {\n      var x = i * step;\n      var y = getLogY(pt.v, H);\n      if (i === 0) ctx.moveTo(x, y);\n      else ctx.lineTo(x, y);\n    });\n    ctx.stroke();\n\n    // Punct curent (Live Edge)\n    var last = history[history.length - 1];\n    var lx = (history.length - 1) * step;\n    var ly = getLogY(last.v, H);\n    ctx.beginPath();\n    ctx.arc(lx, ly, 4, 0, Math.PI * 2);\n    ctx.fillStyle = '#EF9F27';\n    ctx.fill();\n\n    // Etichete X\n    var xAxis = document.getElementById('x-axis');\n    xAxis.innerHTML = '';\n    var shown = [];\n    var stepLabels = Math.max(1, Math.floor(history.length / 5));\n    for (var i = 0; i < history.length; i += stepLabels) {\n      shown.push(history[i].t);\n    }\n    if (shown.length > 0) xAxis.textContent = shown.join('         ');\n  }\n\n  $scope.$watch('msg', function(msg) {\n    if (!msg || msg.payload === undefined) return;\n    var val = parseFloat(msg.payload);\n    if (isNaN(val)) return;\n\n    if (!ctx && !init()) return;\n\n    var now = new Date();\n    history.push({\n      v: val,\n      t: String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0')\n    });\n    if (history.length > MAX) history.shift();\n    draw();\n  });\n})(scope);\n</script>",
+        "storeOutMessages": true,
+        "fwdInMessages": true,
+        "resendOnRefresh": true,
+        "templateScope": "local",
+        "className": "",
+        "x": 1510,
+        "y": 480,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "110af6a330a3c33d",
+        "type": "ui_template",
+        "z": "e55e3c61c85589a0",
+        "group": "146d0975fce9b5b8",
+        "name": "Virtual Assistant",
+        "order": 6,
+        "width": 9,
+        "height": 5,
+        "format": "<div id=\"va-box\" style=\"\n  width: 100%;\n  height: 100%;\n  padding: 12px;\n  box-sizing: border-box;\n  background: #222222;\n  border: 1px solid #2D4A2D;\n  border-radius: 12px;\n  box-shadow: 0 4px 6px rgba(0,0,0,0.3);\n  display: flex;\n  flex-direction: column;\n  justify-content: flex-start;\n  gap: 8px;\">\n\n  <div style=\"display:flex; align-items:center; gap:8px;\">\n    <span style=\"font-size:18px; color:white; font-weight:500; margin-bottom:8px; width:100%;\">\n      Virtual Assistant\n    </span>\n    <span id=\"va-badge\" style=\"\n      font-size:10px;\n      padding:4px 12px;\n      border-radius:20px;\n      background:#2D7A2D;\n      color:white;\n      font-weight:600;\n      flex-shrink:0;\n      white-space:nowrap;\">\n      Healthy\n    </span>\n  </div>\n\n  <div id=\"va-msg\" style=\"\n    font-size:12px;\n    color:#e0e0e0;\n    line-height:1.6;\n    font-weight:400;\n    flex-grow: 1;\n    display: flex;\n    flex-direction: column;\n    justify-content: flex-start;\n    gap: 6px;\n    overflow: hidden;\n    margin-left: 4px;\">\n    Loading...\n  </div>\n\n</div>\n\n<script>\n  (function($scope) {\n  $scope.$watch('msg', function(msg) {\n    if (!msg || !msg.payload) return;\n\n    var text  = msg.payload;\n    var stare = msg.stare || 'fericita';\n\n    var box   = document.getElementById('va-box');\n    var badge = document.getElementById('va-badge');\n    var msgEl = document.getElementById('va-msg');\n\n    var config = {\n      'fericita': {\n        badge:   '#2D7A2D',\n        label:   'Healthy'\n      },\n      'neutra': {\n        badge:   '#C8A000',\n        label:   'Attention'\n      },\n      'trista': {\n        badge:   '#e74c3c',\n        label:   'Critical'\n      }\n    };\n\n    var messages = {\n      'Planta este sanatoasa! Continua ingrijirea normala.': {\n        title: 'Plant is Healthy!',\n        recommendations: [\n          '✓ Continue current watering schedule',\n          '✓ Maintain optimal light exposure',\n          '✓ Monitor temperature stability'\n        ]\n      },\n      'Planta arata sanatoasa! Senzori si camera confirma.': {\n        title: 'All Systems Optimal!',\n        recommendations: [\n          '✓ Sensors confirm perfect conditions',\n          '✓ No action required at this time',\n          '✓ Growth trajectory is excellent'\n        ]\n      },\n      'Solul incepe sa se usuce. Uda in curand.': {\n        title: 'Soil Getting Dry',\n        recommendations: [\n          '• Water plant within 24 hours',\n          '• Check soil depth before watering',\n          '• Upload photo to verify plant health'\n        ]\n      },\n      'Uda urgent! Solul este prea uscat.': {\n        title: 'Urgent: Water Now!',\n        recommendations: [\n          '• Water plant immediately',\n          '• Soil moisture is critically low',\n          '• Upload photo to assess overall health'\n        ]\n      },\n      'Prea mult soare! Muta intr-un loc umbros.': {\n        title: 'Too Much Sunlight',\n        recommendations: [\n          '• Move plant to partial shade',\n          '• Reduce direct light exposure',\n          '• Upload photo to check leaf damage'\n        ]\n      },\n      'Temperatura prea scazuta. Muta planta la caldura.': {\n        title: 'Temperature Too Low',\n        recommendations: [\n          '• Move to warmer location (18°C+)',\n          '• Avoid cold drafts and windows',\n          '• Upload photo to monitor plant stress'\n        ]\n      },\n      'Canicula! Muta planta la racoare.': {\n        title: 'EMERGENCY: Extreme Heat!',\n        recommendations: [\n          '• Move plant to cool, shaded area NOW',\n          '• Increase watering frequency',\n          '• Upload photo to assess critical damage'\n        ]\n      },\n      'Planta arata rau': {\n        title: 'CRITICAL: Plant Struggling!',\n        recommendations: [\n          '• Move to shade and water immediately',\n          '• Increase humidity around plant',\n          '• Upload photo for AI health assessment'\n        ]\n      }\n    };\n\n    var finalMsg = null;\n    Object.keys(messages).forEach(function(key) {\n    if (text.indexOf(key) !== -1 || key.indexOf(text) !== -1) {\n    finalMsg = messages[key];\n    }\n    });\n    \n    // Determina starea din mesaj\n    if (finalMsg) {\n    if (finalMsg.title.indexOf('Healthy') !== -1 || finalMsg.title.indexOf('Optimal') !== -1) {\n    stare = 'fericita';\n    } else if (finalMsg.title.indexOf('EMERGENCY') !== -1 || finalMsg.title.indexOf('CRITICAL') !== -1) {\n    stare = 'trista';\n    } else {\n    stare = 'neutra';\n    }\n    }\n    \n    var cfg = config[stare] || config['fericita'];\n    badge.style.background = cfg.badge;\n    badge.textContent = cfg.label;\n    if (finalMsg) {\n      msgEl.innerHTML = '<strong style=\"color:#1abc9c; font-size:13px; margin-bottom:2px;\">' + finalMsg.title + '</strong>' + \n                        finalMsg.recommendations.map(r => '<div>' + r + '</div>').join('');\n    } else {\n      msgEl.textContent = text;\n    }\n  });\n})(scope);\n</script>",
+        "storeOutMessages": true,
+        "fwdInMessages": true,
+        "resendOnRefresh": true,
+        "templateScope": "local",
+        "className": "",
+        "x": 1320,
+        "y": 560,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "8f5e97ad0842b904",
+        "type": "ui_template",
+        "z": "e55e3c61c85589a0",
+        "group": "146d0975fce9b5b8",
+        "name": "Air Humidity",
+        "order": 5,
+        "width": 7,
+        "height": 5,
+        "format": "<div style=\"\n  width: 100%; \n  height: 100%; \n  padding: 12px; \n  box-sizing: border-box; \n  background: #222222; \n  border: 1px solid #2D4A2D; \n  border-radius: 12px; \n  box-shadow: 0 4px 6px rgba(0,0,0,0.3);\n  display: flex; \n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\">\n\n    <div style=\"font-size:18px; color:white; font-weight:500; margin-bottom:4px; text-align:center; width:100%;\">\n        Air Humidity\n    </div>\n\n    <div\n        style=\"position:relative; width:100%; flex:1; display:flex; flex-direction:column; align-items:center; min-height:0;\">\n        <canvas id=\"humidity-canvas\" style=\"width:100%; max-width:220px; height:110px;\"></canvas>\n\n        <div style=\"position:absolute; bottom:10px; text-align:center;\">\n            <span id=\"humidity-val\" style=\"font-size:24px; color:white; font-weight:bold;\">0.0%</span>\n            <div style=\"font-size:11px; color:#888; margin-top:-2px;\">rH</div>\n        </div>\n    </div>\n\n    <div\n        style=\"width:100%; max-width:200px; display:flex; justify-content:space-between; font-size:10px; color:#666; margin-top:-5px; padding:0 10px;\">\n        <span>0</span>\n        <span>100</span>\n    </div>\n</div>\n\n<script>\n    (function($scope) {\n  var canvas, ctx;\n  var currentVal = 0;\n\n  function init() {\n    canvas = document.getElementById('humidity-canvas');\n    if (!canvas) return false;\n    ctx = canvas.getContext('2d');\n    return true;\n  }\n\n  function draw(val) {\n    if (!ctx) return;\n    \n    // Sincronizare dimensiuni canvas\n    var W = canvas.offsetWidth;\n    var H = canvas.offsetHeight;\n    canvas.width = W;\n    canvas.height = H;\n\n    ctx.clearRect(0, 0, W, H);\n\n    var cx = W / 2;\n    var cy = H - 5;\n    var radius = Math.min(cx, cy) - 15;\n\n    // 1. Arcul de fundal (Gri închis)\n    ctx.beginPath();\n    ctx.arc(cx, cy, radius, Math.PI, 0, false);\n    ctx.lineWidth = 14;\n    ctx.strokeStyle = '#333333';\n    ctx.lineCap = 'round';\n    ctx.stroke();\n\n    // 2. Arcul activ de umiditate (Albastru aprins ca cel vechi)\n    if (val > 0) {\n      var angle = Math.PI + (Math.min(val, 100) / 100) * Math.PI;\n      ctx.beginPath();\n      ctx.arc(cx, cy, radius, Math.PI, angle, false);\n      ctx.lineWidth = 14;\n      ctx.strokeStyle = '#0096FF'; // Culoarea albastră\n      ctx.lineCap = 'round';\n      ctx.stroke();\n    }\n  }\n\n  $scope.$watch('msg', function(msg) {\n    if (!msg || msg.payload === undefined) return;\n    var val = parseFloat(msg.payload);\n    if (isNaN(val)) return;\n\n    currentVal = val;\n    \n    // Actualizăm textul rapid\n    var txt = document.getElementById('humidity-val');\n    if (txt) txt.textContent = val.toFixed(1) + '%';\n\n    if (!ctx && !init()) return;\n    draw(currentVal);\n  });\n\n  // Re-desenare în caz de resize pagină\n  window.addEventListener('resize', function() {\n    if (ctx) draw(currentVal);\n  });\n})(scope);\n</script>",
+        "storeOutMessages": true,
+        "fwdInMessages": true,
+        "resendOnRefresh": true,
+        "templateScope": "local",
+        "className": "",
+        "x": 1310,
+        "y": 400,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "359425b0ba6e2241",
+        "type": "debug",
+        "z": "e55e3c61c85589a0",
+        "name": "debug 1",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 740,
+        "y": 480,
+        "wires": []
+    },
+    {
+        "id": "95780b114e9f314d",
+        "type": "mqtt in",
+        "z": "e55e3c61c85589a0",
+        "name": "MQTT Temp",
+        "topic": "smartgarden/temperatura",
+        "qos": "2",
+        "datatype": "utf8",
+        "broker": "8b47320be09c4c09",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 470,
+        "y": 200,
+        "wires": [
+            [
+                "1b344cdb4c0acba5",
+                "7413ad9bc9e89d37"
+            ]
+        ]
+    },
+    {
+        "id": "0719503b0e93d531",
+        "type": "mqtt in",
+        "z": "e55e3c61c85589a0",
+        "name": "MQTT Soil",
+        "topic": "smartgarden/sol",
+        "qos": "2",
+        "datatype": "auto-detect",
+        "broker": "8b47320be09c4c09",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 460,
+        "y": 280,
+        "wires": [
+            [
+                "29758f58e900b224",
+                "7413ad9bc9e89d37"
+            ]
+        ]
+    },
+    {
+        "id": "203d3ac4a6785b85",
+        "type": "mqtt in",
+        "z": "e55e3c61c85589a0",
+        "name": "MQTT Air",
+        "topic": "smartgarden/umiditate_aer",
+        "qos": "2",
+        "datatype": "auto-detect",
+        "broker": "8b47320be09c4c09",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 460,
+        "y": 420,
+        "wires": [
+            [
+                "7bb4c70b92a0b9b3",
+                "7413ad9bc9e89d37"
+            ]
+        ]
+    },
+    {
+        "id": "521aba2dee1d6544",
+        "type": "mqtt in",
+        "z": "e55e3c61c85589a0",
+        "name": "MQTT Light",
+        "topic": "smartgarden/lumina",
+        "qos": "2",
+        "datatype": "auto-detect",
+        "broker": "8b47320be09c4c09",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 470,
+        "y": 540,
+        "wires": [
+            [
+                "36b3c7c5ba003dab",
+                "7413ad9bc9e89d37"
+            ]
+        ]
+    },
+    {
+        "id": "plant_health_in",
+        "type": "http in",
+        "z": "e55e3c61c85589a0",
+        "name": "Receive Plant Health from MATLAB",
+        "url": "/plant-health",
+        "method": "post",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 620,
+        "y": 680,
+        "wires": [
+            [
+                "plant_health_parse"
+            ]
+        ]
+    },
+    {
+        "id": "plant_health_parse",
+        "type": "function",
+        "z": "e55e3c61c85589a0",
+        "name": "Parse & Store Health Score",
+        "func": "// Primim din MATLAB: { percentGreen, percentYellow, percentBrown, status }\nlet data = msg.payload;\n\nflow.set(\"real_vizual\", {\n    verde: data.percentGreen,\n    galben: data.percentYellow,\n    maro: data.percentBrown\n});\n\nflow.set(\"plantHealthStatus\", data.status);\n\nmsg.payload = data;\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 920,
+        "y": 680,
+        "wires": [
+            [
+                "plant_health_response",
+                "plant_health_debug"
+            ]
+        ]
+    },
+    {
+        "id": "plant_health_response",
+        "type": "http response",
+        "z": "e55e3c61c85589a0",
+        "name": "Respond OK",
+        "statusCode": "200",
+        "headers": {},
+        "x": 1140,
+        "y": 640,
+        "wires": []
+    },
+    {
+        "id": "plant_health_debug",
+        "type": "debug",
+        "z": "e55e3c61c85589a0",
+        "name": "Debug Plant Health",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "full",
+        "x": 1160,
+        "y": 720,
+        "wires": []
+    },
+    {
+        "id": "146d0975fce9b5b8",
+        "type": "ui_group",
+        "name": "Plant Status",
+        "tab": "095031085cacfbba",
+        "order": 1,
+        "disp": false,
+        "width": 23,
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "8b47320be09c4c09",
+        "type": "mqtt-broker",
+        "name": "ESP32Test",
+        "broker": "172.20.10.2",
+        "port": 1883,
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": 4,
+        "keepalive": 60,
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthRetain": "false",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closeQos": "0",
+        "closeRetain": "false",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willRetain": "false",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+    {
+        "id": "095031085cacfbba",
+        "type": "ui_tab",
+        "name": "Smart Plant",
+        "icon": "dashboard",
+        "order": 1,
+        "disabled": false,
+        "hidden": false
+    },
+    {
+        "id": "5f92cf9615066722",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "node-red-dashboard": "3.6.6"
+        }
+    }
+]
